@@ -187,7 +187,7 @@
       };
 
       // リアルタイム読み込み ＆ 自動集計処理
-      const q = query(collection(db, "logs"), orderBy("timestamp", "desc"));
+      const q = query(collection(db, "logs"));
       onSnapshot(q, (snapshot) => {
       const tbody = document.getElementById("historyTable");
       tbody.innerHTML = "";
