@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マスコットお小遣い帳</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #eef2f5; text-align: center; }
+    .card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 400px; margin: 0 auto; }
+    h2 { margin-top: 0; color: #333; }
+    select, input, button { width: 100%; padding: 14px; margin: 10px 0; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
+    button { background: #4f46e5; color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+    button:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🎮 散財防衛フォーム</h2>
+    <select id="type">
+      <option value="spend">💸 出費（部屋が荒れる…）</option>
+      <option value="save">✨ 我慢・貯金（部屋が豪華に！）</option>
+    </select>
+    <input type="number" id="amount" placeholder="金額（例: 500）" inputmode="numeric">
+    <input type="text" id="memo" placeholder="メモ（例: カフェ代、ゲーム我慢）">
+    <button id="sendBtn" onclick="sendData()">送信する！</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ★ここにFirebaseの設定情報を貼り付けます
+    const firebaseConfig = {
+  	apiKey: "AIzaSyCiz6aIYYWjXEvSe1biT24_i8Qkfri5nSA",
+ 	authDomain: "mascotkakeibo.firebaseapp.com",
+ 	projectId: "mascotkakeibo",
+  	storageBucket: "mascotkakeibo.firebasestorage.app",
+  	messagingSenderId: "918089116802",
+  	appId: "1:918089116802:web:3fad2e9a56345c1a88d89b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.sendData = async function() {
+      const type = document.getElementById("type").value;
+      const amount = Number(document.getElementById("amount").value);
+      const memo = document.getElementById("memo").value;
+
+      if (!amount) return alert("金額を入力してね！");
+
+      const btn = document.getElementById("sendBtn");
+      btn.disabled = true;
+      btn.innerText = "送信中...";
+
+      try {
+        await addDoc(collection(db, "logs"), {
+          type: type,
+          amount: amount,
+          memo: memo,
+          timestamp: serverTimestamp()
+        });
+        alert("マスコットに送信したよ！");
+        document.getElementById("amount").value = "";
+        document.getElementById("memo").value = "";
+      } catch (e) {
+        alert("エラーが発生しました: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "送信する！";
+      }
+    };
+  </script>
+</body>
+</html>
