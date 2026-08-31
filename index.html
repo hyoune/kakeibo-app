@@ -81,7 +81,6 @@
 
     button:active { transform: scale(0.97); }
 
-    /* 展開切り替え用ボタン */
     .btn-toggle-history {
       background: rgba(35, 22, 56, 0.8);
       border: 1px solid #8b5cf6;
@@ -275,7 +274,7 @@
     </div>
   </div>
 
-  <!-- 履歴表示カード（折りたたみ機能付き） -->
+  <!-- 履歴表示カード -->
   <div class="card">
     <h3>📜 直近の履歴</h3>
     <table>
@@ -291,7 +290,6 @@
         <tr><td colspan="4">読み込み中...</td></tr>
       </tbody>
     </table>
-    <!-- ★全表示・折りたたみ切り替えボタン -->
     <button class="btn-toggle-history" id="toggleHistoryBtn" onclick="toggleHistoryView()">✦ 過去2週間の履歴をすべて見る ✦</button>
   </div>
 
@@ -330,8 +328,8 @@
     ];
 
     let expenseChart = null;
-    let cachedDocs = [];          // 取得データを一時保存
-    let isExpandedView = false;   // 履歴の全表示フラグ
+    let cachedDocs = [];
+    let isExpandedView = false;
 
     window.sendData = async function() {
       const type = document.getElementById("type").value;
@@ -370,7 +368,6 @@
       }
     };
 
-    // ★表示展開・たたむ切り替え関数★
     window.toggleHistoryView = function() {
       isExpandedView = !isExpandedView;
       const btn = document.getElementById("toggleHistoryBtn");
@@ -393,14 +390,12 @@
           cachedDocs.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // 日付順ソート（降順）
         cachedDocs.sort((a, b) => {
           const tA = a.timestamp ? a.timestamp.seconds : 0;
           const tB = b.timestamp ? b.timestamp.seconds : 0;
           return tB - tA;
         });
 
-        // 全データ集計
         cachedDocs.forEach((data) => {
           const cat = data.category || "おこづかい";
           const amt = Number(data.amount) || 0;
@@ -425,7 +420,6 @@
           }
         });
 
-        // 集計テキストの更新
         categories.forEach(cat => {
           const el = document.getElementById(`sum-${cat}`);
           if (el) el.innerText = totals[cat].toLocaleString() + "円";
@@ -433,7 +427,7 @@
 
         updatePaceUI(grandBudget, grandSpent);
         renderDailyChart(dailyExpenses);
-        renderHistoryTable(cachedDocs); // 履歴テーブル描画
+        renderHistoryTable(cachedDocs);
 
       }, (err) => {
         showError("Firestore取得エラー: " + err.message);
@@ -442,7 +436,6 @@
       showError("処理全体の例外: " + e.message);
     }
 
-    // ★履歴テーブルの描画（通常5件 / 展開時14日分）★
     function renderHistoryTable(docs) {
       const tbody = document.getElementById("historyTable");
       tbody.innerHTML = "";
@@ -453,17 +446,14 @@
       }
 
       const nowSeconds = Math.floor(Date.now() / 1000);
-      const twoWeeksSeconds = 14 * 24 * 60 * 60; // 14日間の秒数
+      const twoWeeksSeconds = 14 * 24 * 60 * 60;
 
       let displayCount = 0;
 
       for (let data of docs) {
         const tSec = data.timestamp ? data.timestamp.seconds : nowSeconds;
         
-        // 過去2週間（14日）より古いデータはスキップ
         if (nowSeconds - tSec > twoWeeksSeconds) continue;
-
-        // 展開していない場合は「5件まで」に制限
         if (!isExpandedView && displayCount >= 5) break;
 
         const id = data.id;
@@ -534,6 +524,35 @@
       }
     }
 
+    // ★2,000円ラインを描画するカスタムプラグイン
+    const targetLinePlugin = {
+      id: 'targetLine',
+      afterDraw(chart) {
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        const targetValue = 2000; // 目標金額の2,000円
+        const yPos = y.getPixelForValue(targetValue);
+
+        // Y軸の描画範囲内に2000円が含まれる場合のみ描画
+        if (yPos >= chart.chartArea.top && yPos <= chart.chartArea.bottom) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([5, 5]); // 点線
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#f43f5e'; // ローズレッド（赤ピンク）
+          ctx.moveTo(left, yPos);
+          ctx.lineTo(right, yPos);
+          ctx.stroke();
+
+          // 「2,000円」のラベル表示
+          ctx.fillStyle = '#f43f5e';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText('2,000円', right - 4, yPos - 4);
+          ctx.restore();
+        }
+      }
+    };
+
     function renderDailyChart(dailyExpenses) {
       const ctx = document.getElementById('dailyExpenseChart').getContext('2d');
 
@@ -569,6 +588,7 @@
             borderRadius: 6
           }]
         },
+        plugins: [targetLinePlugin], // ★2,000円ライン描画用プラグインを追加
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
@@ -580,7 +600,8 @@
             y: {
               ticks: { color: '#a78bfa', font: { size: 10 } },
               grid: { color: 'rgba(76, 56, 105, 0.3)' },
-              beginAtZero: true
+              beginAtZero: true,
+              suggestedMax: 2500 // 2,000円の線が見えやすいようにY軸の最大値を調整
             }
           }
         }
