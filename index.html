@@ -91,6 +91,14 @@
       box-shadow: none;
     }
 
+    .btn-cancel-edit {
+      background: rgba(100, 116, 139, 0.3);
+      border: 1px solid #64748b;
+      color: #cbd5e1;
+      margin-top: 4px;
+      display: none;
+    }
+
     .pace-container {
       margin-top: 12px;
       padding: 14px;
@@ -162,7 +170,7 @@
     }
 
     th, td {
-      padding: 10px 4px;
+      padding: 8px 2px;
       text-align: center;
       border-bottom: 1px solid #2d1f42;
     }
@@ -176,18 +184,31 @@
     .badge-spend { color: #f43f5e; font-weight: bold; text-shadow: 0 0 5px rgba(244, 63, 94, 0.3); }
     .badge-save { color: #38bdf8; font-weight: bold; text-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
 
+    .btn-action {
+      background: rgba(168, 85, 247, 0.2);
+      color: #c084fc;
+      border: 1px solid #a855f7;
+      padding: 3px 6px;
+      border-radius: 6px;
+      font-size: 10px;
+      width: auto;
+      margin: 2px 0;
+      cursor: pointer;
+    }
+
     .btn-delete {
       background: rgba(225, 29, 72, 0.2);
       color: #fda4af;
       border: 1px solid #f43f5e;
-      padding: 4px 8px;
+      padding: 3px 6px;
       border-radius: 6px;
-      font-size: 11px;
+      font-size: 10px;
       width: auto;
-      margin: 0;
+      margin: 2px 0;
       cursor: pointer;
     }
 
+    .btn-action:hover { background: #a855f7; color: white; }
     .btn-delete:hover { background: #e11d48; color: white; }
 
     #errorLog {
@@ -209,8 +230,8 @@
   <div id="errorLog"></div>
 
   <!-- 入力フォーム -->
-  <div class="card">
-    <h2>✦ 散財防衛フォーム ✦</h2>
+  <div class="card" id="formCard">
+    <h2 id="formTitle">✦ 散財防衛フォーム ✦</h2>
     <select id="type">
       <option value="spend">💸 出費（部屋が荒れる…）</option>
       <option value="save">✨ 入金・予算分け（部屋が豪華に！）</option>
@@ -232,6 +253,7 @@
     <input type="number" id="amount" placeholder="金額（例: 500）" inputmode="numeric">
     <input type="text" id="memo" placeholder="メモ（例: カフェ代など）">
     <button id="sendBtn" onclick="sendData()">魔導記録を送信する ✦</button>
+    <button id="cancelEditBtn" class="btn-cancel-edit" onclick="cancelEdit()">編集をキャンセル</button>
   </div>
 
   <!-- 全体ペース可視化カード -->
@@ -283,7 +305,7 @@
           <th>日付/項目</th>
           <th>金額</th>
           <th>メモ</th>
-          <th>削除</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody id="historyTable">
@@ -303,7 +325,7 @@
     window.addEventListener('error', (e) => showError("JSエラー: " + e.message));
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCiz6aIYYWjXEvSe1biT24_i8Qkfri5nSA",
@@ -330,7 +352,9 @@
     let expenseChart = null;
     let cachedDocs = [];
     let isExpandedView = false;
+    let editingLogId = null; // 編集中のID（nullなら新規作成）
 
+    // 送信（新規追加 または 編集保存）
     window.sendData = async function() {
       const type = document.getElementById("type").value;
       const category = document.getElementById("category").value;
@@ -342,26 +366,69 @@
       btn.disabled = true;
 
       try {
-        await addDoc(collection(db, "logs"), {
-          type: type,
-          category: category,
-          amount: amount,
-          memo: memo || "-",
-          timestamp: serverTimestamp()
-        });
-        document.getElementById("amount").value = "";
-        document.getElementById("memo").value = "";
+        if (editingLogId) {
+          // ★既存データの修正更新（updateDoc）
+          await updateDoc(doc(db, "logs", editingLogId), {
+            type: type,
+            category: category,
+            amount: amount,
+            memo: memo || "-"
+          });
+          cancelEdit(); // 編集モード解除
+        } else {
+          // ★新規追加（addDoc）
+          await addDoc(collection(db, "logs"), {
+            type: type,
+            category: category,
+            amount: amount,
+            memo: memo || "-",
+            timestamp: serverTimestamp()
+          });
+          document.getElementById("amount").value = "";
+          document.getElementById("memo").value = "";
+        }
       } catch (e) {
-        showError("送信エラー: " + e.message);
+        showError("保存エラー: " + e.message);
       } finally {
         btn.disabled = false;
       }
+    };
+
+    // ★編集モードへの切り替え関数★
+    window.startEditLog = function(id) {
+      const target = cachedDocs.find(d => d.id === id);
+      if (!target) return;
+
+      editingLogId = id;
+      document.getElementById("type").value = target.type || "spend";
+      document.getElementById("category").value = target.category || "おこづかい";
+      document.getElementById("amount").value = target.amount || "";
+      document.getElementById("memo").value = (target.memo === "-") ? "" : target.memo;
+
+      // UIの切り替え
+      document.getElementById("formTitle").innerText = "✏️ 記録の編集";
+      document.getElementById("sendBtn").innerText = "✦ 変更を保存する ✦";
+      document.getElementById("cancelEditBtn").style.display = "block";
+
+      // フォームカードへスムーズスクロール
+      document.getElementById("formCard").scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // ★編集キャンセルの処理★
+    window.cancelEdit = function() {
+      editingLogId = null;
+      document.getElementById("amount").value = "";
+      document.getElementById("memo").value = "";
+      document.getElementById("formTitle").innerText = "✦ 散財防衛フォーム ✦";
+      document.getElementById("sendBtn").innerText = "魔導記録を送信する ✦";
+      document.getElementById("cancelEditBtn").style.display = "none";
     };
 
     window.deleteLog = async function(id) {
       if (confirm("この記録を削除しますか？")) {
         try {
           await deleteDoc(doc(db, "logs", id));
+          if (editingLogId === id) cancelEdit();
         } catch (e) {
           showError("削除エラー: " + e.message);
         }
@@ -474,7 +541,10 @@
           <td><small style="color:#a78bfa">${dateStr}</small><br><small>${cat}</small></td>
           <td class="${typeColor}">${sign}${amt.toLocaleString()}円</td>
           <td><small>${data.memo || "-"}</small></td>
-          <td><button class="btn-delete" onclick="deleteLog('${id}')">🗑️</button></td>
+          <td>
+            <button class="btn-action" onclick="startEditLog('${id}')">✏️</button>
+            <button class="btn-delete" onclick="deleteLog('${id}')">🗑️</button>
+          </td>
         `;
         tbody.appendChild(tr);
         displayCount++;
@@ -524,26 +594,23 @@
       }
     }
 
-    // ★2,000円ラインを描画するカスタムプラグイン
     const targetLinePlugin = {
       id: 'targetLine',
       afterDraw(chart) {
         const { ctx, chartArea: { left, right }, scales: { y } } = chart;
-        const targetValue = 2000; // 目標金額の2,000円
+        const targetValue = 2000;
         const yPos = y.getPixelForValue(targetValue);
 
-        // Y軸の描画範囲内に2000円が含まれる場合のみ描画
         if (yPos >= chart.chartArea.top && yPos <= chart.chartArea.bottom) {
           ctx.save();
           ctx.beginPath();
-          ctx.setLineDash([5, 5]); // 点線
+          ctx.setLineDash([5, 5]);
           ctx.lineWidth = 2;
-          ctx.strokeStyle = '#f43f5e'; // ローズレッド（赤ピンク）
+          ctx.strokeStyle = '#f43f5e';
           ctx.moveTo(left, yPos);
           ctx.lineTo(right, yPos);
           ctx.stroke();
 
-          // 「2,000円」のラベル表示
           ctx.fillStyle = '#f43f5e';
           ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'right';
@@ -588,7 +655,7 @@
             borderRadius: 6
           }]
         },
-        plugins: [targetLinePlugin], // ★2,000円ライン描画用プラグインを追加
+        plugins: [targetLinePlugin],
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
@@ -601,7 +668,7 @@
               ticks: { color: '#a78bfa', font: { size: 10 } },
               grid: { color: 'rgba(76, 56, 105, 0.3)' },
               beginAtZero: true,
-              suggestedMax: 2500 // 2,000円の線が見えやすいようにY軸の最大値を調整
+              suggestedMax: 2500
             }
           }
         }
