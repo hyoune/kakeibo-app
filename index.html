@@ -58,6 +58,12 @@
       transition: all 0.2s ease;
     }
 
+    /* カレンダーアイコンのダーク対応 */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8) sepia(1) saturate(5) hue-rotate(220deg);
+      cursor: pointer;
+    }
+
     select:focus, input:focus {
       border-color: #a855f7;
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
@@ -232,6 +238,10 @@
   <!-- 入力フォーム -->
   <div class="card" id="formCard">
     <h2 id="formTitle">✦ 散財防衛フォーム ✦</h2>
+    
+    <!-- ★日付選択ボックスを追加★ -->
+    <input type="date" id="logDate">
+
     <select id="type">
       <option value="spend">💸 出費（部屋が荒れる…）</option>
       <option value="save">✨ 入金・予算分け（部屋が豪華に！）</option>
@@ -325,7 +335,7 @@
     window.addEventListener('error', (e) => showError("JSエラー: " + e.message));
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCiz6aIYYWjXEvSe1biT24_i8Qkfri5nSA",
@@ -352,40 +362,57 @@
     let expenseChart = null;
     let cachedDocs = [];
     let isExpandedView = false;
-    let editingLogId = null; // 編集中のID（nullなら新規作成）
+    let editingLogId = null;
+
+    // 今日の日付を YYYY-MM-DD 形式で取得してデフォルト設定
+    function resetDateField() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById("logDate").value = `${yyyy}-${mm}-${dd}`;
+    }
+    resetDateField(); // 初期実行
 
     // 送信（新規追加 または 編集保存）
     window.sendData = async function() {
+      const selectedDateVal = document.getElementById("logDate").value;
       const type = document.getElementById("type").value;
       const category = document.getElementById("category").value;
       const amount = Number(document.getElementById("amount").value);
       const memo = document.getElementById("memo").value;
 
       if (!amount) return alert("金額を入力してね！");
+      if (!selectedDateVal) return alert("日付を選択してね！");
+
+      // 選択した日付文字列を Firebase 用の Timestamp に変換
+      const selectedDateObj = new Date(selectedDateVal + "T12:00:00");
+      const targetTimestamp = Timestamp.fromDate(selectedDateObj);
+
       const btn = document.getElementById("sendBtn");
       btn.disabled = true;
 
       try {
         if (editingLogId) {
-          // ★既存データの修正更新（updateDoc）
           await updateDoc(doc(db, "logs", editingLogId), {
             type: type,
             category: category,
             amount: amount,
-            memo: memo || "-"
+            memo: memo || "-",
+            timestamp: targetTimestamp
           });
-          cancelEdit(); // 編集モード解除
+          cancelEdit();
         } else {
-          // ★新規追加（addDoc）
           await addDoc(collection(db, "logs"), {
             type: type,
             category: category,
             amount: amount,
             memo: memo || "-",
-            timestamp: serverTimestamp()
+            timestamp: targetTimestamp
           });
           document.getElementById("amount").value = "";
           document.getElementById("memo").value = "";
+          resetDateField();
         }
       } catch (e) {
         showError("保存エラー: " + e.message);
@@ -394,7 +421,7 @@
       }
     };
 
-    // ★編集モードへの切り替え関数★
+    // 編集モードへの切り替え
     window.startEditLog = function(id) {
       const target = cachedDocs.find(d => d.id === id);
       if (!target) return;
@@ -405,20 +432,27 @@
       document.getElementById("amount").value = target.amount || "";
       document.getElementById("memo").value = (target.memo === "-") ? "" : target.memo;
 
-      // UIの切り替え
+      // 日付のセット
+      if (target.timestamp) {
+        const d = target.timestamp.toDate();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        document.getElementById("logDate").value = `${yyyy}-${mm}-${dd}`;
+      }
+
       document.getElementById("formTitle").innerText = "✏️ 記録の編集";
       document.getElementById("sendBtn").innerText = "✦ 変更を保存する ✦";
       document.getElementById("cancelEditBtn").style.display = "block";
-
-      // フォームカードへスムーズスクロール
       document.getElementById("formCard").scrollIntoView({ behavior: 'smooth' });
     };
 
-    // ★編集キャンセルの処理★
+    // 編集キャンセルの処理
     window.cancelEdit = function() {
       editingLogId = null;
       document.getElementById("amount").value = "";
       document.getElementById("memo").value = "";
+      resetDateField();
       document.getElementById("formTitle").innerText = "✦ 散財防衛フォーム ✦";
       document.getElementById("sendBtn").innerText = "魔導記録を送信する ✦";
       document.getElementById("cancelEditBtn").style.display = "none";
