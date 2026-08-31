@@ -5,13 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>マスコットお小遣い帳 - Gothic Edition</title>
 
-  <!-- ゴシック＆和風可愛いGoogle Fontsの読み込み -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
 
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    /* 全体背景：深紫〜漆黒のダークグラデーション */
     body {
       font-family: 'Kiwi Maru', serif, sans-serif;
       padding: 16px;
@@ -22,7 +24,6 @@
       margin: 0;
     }
 
-    /* ゴシックカード枠（ガラスドーム風の透け感 ＋ 紫のネオン枠） */
     .card {
       background: rgba(22, 15, 34, 0.75);
       backdrop-filter: blur(8px);
@@ -34,7 +35,6 @@
       margin: 0 auto 20px;
     }
 
-    /* 見出し装飾 */
     h2, h3 {
       font-family: 'Cinzel', 'Kiwi Maru', serif;
       margin-top: 0;
@@ -43,7 +43,6 @@
       letter-spacing: 1px;
     }
 
-    /* フォームパーツ（ダーク入力エリア） */
     select, input, button {
       width: 100%;
       padding: 12px;
@@ -64,7 +63,6 @@
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
     }
 
-    /* ゴシック紫ボタン */
     button {
       background: linear-gradient(135deg, #6b21a8 0%, #3b0764 100%);
       color: #f3e8ff;
@@ -81,11 +79,19 @@
       box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
     }
 
-    button:active {
-      transform: scale(0.97);
+    button:active { transform: scale(0.97); }
+
+    /* 展開切り替え用ボタン */
+    .btn-toggle-history {
+      background: rgba(35, 22, 56, 0.8);
+      border: 1px solid #8b5cf6;
+      color: #d8b4fe;
+      font-size: 12px;
+      padding: 8px;
+      margin-top: 14px;
+      box-shadow: none;
     }
 
-    /* 進捗メーター（魔導ゲージ風） */
     .pace-container {
       margin-top: 12px;
       padding: 14px;
@@ -94,11 +100,7 @@
       border: 1px solid #3b2754;
     }
 
-    .pace-status {
-      font-weight: bold;
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
+    .pace-status { font-weight: bold; font-size: 14px; margin-bottom: 8px; }
 
     .pace-bar-bg {
       background: #1d132b;
@@ -123,7 +125,15 @@
       margin-top: 8px;
     }
 
-    /* 項目別グリッド表示 */
+    .chart-container {
+      position: relative;
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(10, 6, 18, 0.6);
+      border-radius: 12px;
+      border: 1px solid #3b2754;
+    }
+
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -142,18 +152,9 @@
       align-items: center;
     }
 
-    .summary-title {
-      font-size: 11px;
-      color: #c084fc;
-    }
+    .summary-title { font-size: 11px; color: #c084fc; }
+    .summary-amount { font-size: 13px; font-weight: bold; color: #f3e8ff; }
 
-    .summary-amount {
-      font-size: 13px;
-      font-weight: bold;
-      color: #f3e8ff;
-    }
-
-    /* 履歴テーブル（ゴシックダークスタイル） */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -173,17 +174,8 @@
       font-weight: normal;
     }
 
-    .badge-spend {
-      color: #f43f5e;
-      font-weight: bold;
-      text-shadow: 0 0 5px rgba(244, 63, 94, 0.3);
-    }
-
-    .badge-save {
-      color: #38bdf8;
-      font-weight: bold;
-      text-shadow: 0 0 5px rgba(56, 189, 248, 0.3);
-    }
+    .badge-spend { color: #f43f5e; font-weight: bold; text-shadow: 0 0 5px rgba(244, 63, 94, 0.3); }
+    .badge-save { color: #38bdf8; font-weight: bold; text-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
 
     .btn-delete {
       background: rgba(225, 29, 72, 0.2);
@@ -197,12 +189,8 @@
       cursor: pointer;
     }
 
-    .btn-delete:hover {
-      background: #e11d48;
-      color: white;
-    }
+    .btn-delete:hover { background: #e11d48; color: white; }
 
-    /* エラー表示 */
     #errorLog {
       background: #4c0519;
       color: #fecdd3;
@@ -219,7 +207,6 @@
 </head>
 <body>
 
-  <!-- エラーログ表示枠 -->
   <div id="errorLog"></div>
 
   <!-- 入力フォーム -->
@@ -263,6 +250,14 @@
     </div>
   </div>
 
+  <!-- 日別出費グラフカード -->
+  <div class="card">
+    <h3>📊 日別の出費グラフ（直近）</h3>
+    <div class="chart-container">
+      <canvas id="dailyExpenseChart"></canvas>
+    </div>
+  </div>
+
   <!-- 集計表示 -->
   <div class="card">
     <h3>🕯️ 項目別の残高・積み立て</h3>
@@ -280,13 +275,13 @@
     </div>
   </div>
 
-  <!-- 履歴表示 -->
+  <!-- 履歴表示カード（折りたたみ機能付き） -->
   <div class="card">
     <h3>📜 直近の履歴</h3>
     <table>
       <thead>
         <tr>
-          <th>項目</th>
+          <th>日付/項目</th>
           <th>金額</th>
           <th>メモ</th>
           <th>削除</th>
@@ -296,6 +291,8 @@
         <tr><td colspan="4">読み込み中...</td></tr>
       </tbody>
     </table>
+    <!-- ★全表示・折りたたみ切り替えボタン -->
+    <button class="btn-toggle-history" id="toggleHistoryBtn" onclick="toggleHistoryView()">✦ 過去2週間の履歴をすべて見る ✦</button>
   </div>
 
   <script type="module">
@@ -331,6 +328,10 @@
       "おこづかい", "日用品", "医療費", "食費", "教室代",
       "サブスク積み立て", "テーマパーク積み立て", "ファッションメイク費", "交通費", "美容院代"
     ];
+
+    let expenseChart = null;
+    let cachedDocs = [];          // 取得データを一時保存
+    let isExpandedView = false;   // 履歴の全表示フラグ
 
     window.sendData = async function() {
       const type = document.getElementById("type").value;
@@ -369,38 +370,48 @@
       }
     };
 
+    // ★表示展開・たたむ切り替え関数★
+    window.toggleHistoryView = function() {
+      isExpandedView = !isExpandedView;
+      const btn = document.getElementById("toggleHistoryBtn");
+      btn.innerText = isExpandedView ? "✦ 履歴をたたむ ✦" : "✦ 過去2週間の履歴をすべて見る ✦";
+      renderHistoryTable(cachedDocs);
+    };
+
     try {
       const q = query(collection(db, "logs"));
       onSnapshot(q, (snapshot) => {
-        const tbody = document.getElementById("historyTable");
-        tbody.innerHTML = "";
-
         let totals = {};
         categories.forEach(cat => totals[cat] = 0);
 
         let grandBudget = 0;
         let grandSpent = 0;
+        let dailyExpenses = {};
 
-        if (snapshot.empty) {
-          tbody.innerHTML = '<tr><td colspan="4">まだ履歴がありません</td></tr>';
-        }
-
-        let docs = [];
+        cachedDocs = [];
         snapshot.forEach(docSnap => {
-          docs.push({ id: docSnap.id, ...docSnap.data() });
+          cachedDocs.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        docs.sort((a, b) => {
+        // 日付順ソート（降順）
+        cachedDocs.sort((a, b) => {
           const tA = a.timestamp ? a.timestamp.seconds : 0;
           const tB = b.timestamp ? b.timestamp.seconds : 0;
           return tB - tA;
         });
 
-        let count = 0;
-        docs.forEach((data) => {
-          const id = data.id;
+        // 全データ集計
+        cachedDocs.forEach((data) => {
           const cat = data.category || "おこづかい";
           const amt = Number(data.amount) || 0;
+
+          let dateStr = "";
+          if (data.timestamp) {
+            const dateObj = data.timestamp.toDate();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            dateStr = `${m}/${d}`;
+          }
 
           if (data.type === "save") {
             if (totals[cat] !== undefined) totals[cat] += amt;
@@ -408,36 +419,76 @@
           } else {
             if (totals[cat] !== undefined) totals[cat] -= amt;
             grandSpent += amt;
-          }
-
-          if (count < 10) {
-            const tr = document.createElement("tr");
-            const typeColor = data.type === "spend" ? "badge-spend" : "badge-save";
-            const sign = data.type === "spend" ? "-" : "+";
-
-            tr.innerHTML = `
-              <td><small>${cat}</small></td>
-              <td class="${typeColor}">${sign}${amt.toLocaleString()}円</td>
-              <td><small>${data.memo || "-"}</small></td>
-              <td><button class="btn-delete" onclick="deleteLog('${id}')">🗑️</button></td>
-            `;
-            tbody.appendChild(tr);
-            count++;
+            if (dateStr) {
+              dailyExpenses[dateStr] = (dailyExpenses[dateStr] || 0) + amt;
+            }
           }
         });
 
+        // 集計テキストの更新
         categories.forEach(cat => {
           const el = document.getElementById(`sum-${cat}`);
           if (el) el.innerText = totals[cat].toLocaleString() + "円";
         });
 
         updatePaceUI(grandBudget, grandSpent);
+        renderDailyChart(dailyExpenses);
+        renderHistoryTable(cachedDocs); // 履歴テーブル描画
 
       }, (err) => {
         showError("Firestore取得エラー: " + err.message);
       });
     } catch(e) {
       showError("処理全体の例外: " + e.message);
+    }
+
+    // ★履歴テーブルの描画（通常5件 / 展開時14日分）★
+    function renderHistoryTable(docs) {
+      const tbody = document.getElementById("historyTable");
+      tbody.innerHTML = "";
+
+      if (docs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">まだ履歴がありません</td></tr>';
+        return;
+      }
+
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const twoWeeksSeconds = 14 * 24 * 60 * 60; // 14日間の秒数
+
+      let displayCount = 0;
+
+      for (let data of docs) {
+        const tSec = data.timestamp ? data.timestamp.seconds : nowSeconds;
+        
+        // 過去2週間（14日）より古いデータはスキップ
+        if (nowSeconds - tSec > twoWeeksSeconds) continue;
+
+        // 展開していない場合は「5件まで」に制限
+        if (!isExpandedView && displayCount >= 5) break;
+
+        const id = data.id;
+        const cat = data.category || "おこづかい";
+        const amt = Number(data.amount) || 0;
+
+        let dateStr = "";
+        if (data.timestamp) {
+          const d = data.timestamp.toDate();
+          dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+        }
+
+        const tr = document.createElement("tr");
+        const typeColor = data.type === "spend" ? "badge-spend" : "badge-save";
+        const sign = data.type === "spend" ? "-" : "+";
+
+        tr.innerHTML = `
+          <td><small style="color:#a78bfa">${dateStr}</small><br><small>${cat}</small></td>
+          <td class="${typeColor}">${sign}${amt.toLocaleString()}円</td>
+          <td><small>${data.memo || "-"}</small></td>
+          <td><button class="btn-delete" onclick="deleteLog('${id}')">🗑️</button></td>
+        `;
+        tbody.appendChild(tr);
+        displayCount++;
+      }
     }
 
     function updatePaceUI(budget, spent) {
@@ -466,21 +517,74 @@
 
       if (spent <= targetPace) {
         msg.innerText = "✨ 輝く節約力！目標ペース維持中（リッチ）";
-        msg.style.color = "#c084fc"; // 妖艶な明紫
+        msg.style.color = "#c084fc";
         bar.style.backgroundColor = "#a855f7";
       } else if (spent <= targetPace * 1.1) {
         msg.innerText = "🌱 順調なやりくり（普通）";
-        msg.style.color = "#38bdf8"; // 水色ネオン
+        msg.style.color = "#38bdf8";
         bar.style.backgroundColor = "#0284c7";
       } else if (spent <= targetPace * 1.3) {
         msg.innerText = "⚠️ 散財の予兆…！（警告）";
-        msg.style.color = "#fbbf24"; // 金色
+        msg.style.color = "#fbbf24";
         bar.style.backgroundColor = "#d97706";
       } else {
         msg.innerText = "🚨 散財警報発令中！（ピンチ）";
-        msg.style.color = "#f43f5e"; // 赤紫
+        msg.style.color = "#f43f5e";
         bar.style.backgroundColor = "#e11d48";
       }
+    }
+
+    function renderDailyChart(dailyExpenses) {
+      const ctx = document.getElementById('dailyExpenseChart').getContext('2d');
+
+      const labels = [];
+      const dataValues = [];
+      const now = new Date();
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${m}/${day}`;
+
+        labels.push(dateStr);
+        dataValues.push(dailyExpenses[dateStr] || 0);
+      }
+
+      if (expenseChart) {
+        expenseChart.destroy();
+      }
+
+      expenseChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '出費額 (円)',
+            data: dataValues,
+            backgroundColor: 'rgba(168, 85, 247, 0.7)',
+            borderColor: '#c084fc',
+            borderWidth: 1,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              ticks: { color: '#c084fc', font: { size: 10 } },
+              grid: { color: 'rgba(76, 56, 105, 0.3)' }
+            },
+            y: {
+              ticks: { color: '#a78bfa', font: { size: 10 } },
+              grid: { color: 'rgba(76, 56, 105, 0.3)' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
     }
   </script>
 </body>
