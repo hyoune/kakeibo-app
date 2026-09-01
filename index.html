@@ -585,48 +585,61 @@
       }
     }
 
-    function updatePaceUI(budget, spent) {
-      const now = new Date();
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const currentDay = now.getDate();
+function updatePaceUI(budget, spent) {
+  const now = new Date();
+  
+  // 給料日サイクル（25日〜翌月24日）の計算
+  let cycleStart = new Date(now.getFullYear(), now.getMonth(), 25);
+  if (now.getDate() < 25) {
+    // 25日未満（例: 9/1）なら、開始日は先月の25日（8/25）
+    cycleStart.setMonth(cycleStart.getMonth() - 1);
+  }
 
-      const targetPace = Math.round((budget / daysInMonth) * currentDay);
+  // サイクル終了日（翌月24日の23:59:59）
+  let cycleEnd = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, 24, 23, 59, 59);
 
-      document.getElementById("totalSpentText").innerText = spent.toLocaleString() + "円";
-      document.getElementById("targetPaceText").innerText = targetPace.toLocaleString() + "円";
+  // 全日数（通常30〜31日）と、今日がサイクル開始から何日目かを計算
+  const totalCycleDays = Math.round((cycleEnd - cycleStart) / (1000 * 60 * 60 * 24));
+  const currentCycleDay = Math.floor((now - cycleStart) / (1000 * 60 * 60 * 24)) + 1;
 
-      const bar = document.getElementById("paceBar");
-      const msg = document.getElementById("paceMessage");
+  // 25日サイクル内での目標累積支出
+  const targetPace = Math.round((budget / totalCycleDays) * currentCycleDay);
 
-      if (budget <= 0) {
-        msg.innerText = "✦ 袋にお金を入れると目標ペースが算出されます ✦";
-        msg.style.color = "#a78bfa";
-        bar.style.width = "0%";
-        bar.style.backgroundColor = "#4c1d95";
-        return;
-      }
+  document.getElementById("totalSpentText").innerText = spent.toLocaleString() + "円";
+  document.getElementById("targetPaceText").innerText = targetPace.toLocaleString() + "円";
 
-      const percentage = targetPace > 0 ? Math.min(Math.round((spent / targetPace) * 100), 100) : 0;
-      bar.style.width = percentage + "%";
+  const bar = document.getElementById("paceBar");
+  const msg = document.getElementById("paceMessage");
 
-      if (spent <= targetPace) {
-        msg.innerText = "✨ 輝く節約力！目標ペース維持中（リッチ）";
-        msg.style.color = "#c084fc";
-        bar.style.backgroundColor = "#a855f7";
-      } else if (spent <= targetPace * 1.1) {
-        msg.innerText = "🌱 順調なやりくり（普通）";
-        msg.style.color = "#38bdf8";
-        bar.style.backgroundColor = "#0284c7";
-      } else if (spent <= targetPace * 1.3) {
-        msg.innerText = "⚠️ 散財の予兆…！（警告）";
-        msg.style.color = "#fbbf24";
-        bar.style.backgroundColor = "#d97706";
-      } else {
-        msg.innerText = "🚨 散財警報発令中！（ピンチ）";
-        msg.style.color = "#f43f5e";
-        bar.style.backgroundColor = "#e11d48";
-      }
-    }
+  if (budget <= 0) {
+    msg.innerText = "✦ 袋にお金を入れると目標ペースが算出されます ✦";
+    msg.style.color = "#a78bfa";
+    bar.style.width = "0%";
+    bar.style.backgroundColor = "#4c1d95";
+    return;
+  }
+
+  const percentage = targetPace > 0 ? Math.min(Math.round((spent / targetPace) * 100), 100) : 0;
+  bar.style.width = percentage + "%";
+
+  if (spent <= targetPace) {
+    msg.innerText = "✨ 輝く節約力！目標ペース維持中（リッチ）";
+    msg.style.color = "#c084fc";
+    bar.style.backgroundColor = "#a855f7";
+  } else if (spent <= targetPace * 1.1) {
+    msg.innerText = "🌱 順調なやりくり（普通）";
+    msg.style.color = "#38bdf8";
+    bar.style.backgroundColor = "#0284c7";
+  } else if (spent <= targetPace * 1.3) {
+    msg.innerText = "⚠️ 散財の予兆…！（警告）";
+    msg.style.color = "#fbbf24";
+    bar.style.backgroundColor = "#d97706";
+  } else {
+    msg.innerText = "🚨 散財警報発令中！（ピンチ）";
+    msg.style.color = "#f43f5e";
+    bar.style.backgroundColor = "#e11d48";
+  }
+}
 
     const targetLinePlugin = {
       id: 'targetLine',
