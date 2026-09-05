@@ -679,13 +679,14 @@
       }
     };
 
-    function renderDailyChart(dailyExpenses) {
+function renderDailyChart(dailyExpenses) {
       const ctx = document.getElementById('dailyExpenseChart').getContext('2d');
 
       const labels = [];
       const dataValues = [];
       const now = new Date();
 
+      // 直近7日分の「日付」と「合計金額」をセット
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(now.getDate() - i);
@@ -693,8 +694,11 @@
         const day = String(d.getDate()).padStart(2, '0');
         const dateStr = `${m}/${day}`;
 
-        labels.push(dateStr);
-        dataValues.push(dailyExpenses[dateStr] || 0);
+        const amount = dailyExpenses[dateStr] || 0;
+
+        // ★X軸のラベルを [ "08/26", "0円" ] のように配列（2行）にする★
+        labels.push([dateStr, `${amount.toLocaleString()}円`]);
+        dataValues.push(amount);
       }
 
       if (expenseChart) {
@@ -720,7 +724,14 @@
           plugins: { legend: { display: false } },
           scales: {
             x: {
-              ticks: { color: '#c084fc', font: { size: 10 } },
+              ticks: { 
+                color: '#c084fc', 
+                font: { size: 10 },
+                // ★2行目（金額）の色や見た目をちょっと見やすく調整
+                callback: function(val, index) {
+                  return labels[index]; 
+                }
+              },
               grid: { color: 'rgba(76, 56, 105, 0.3)' }
             },
             y: {
