@@ -528,6 +528,21 @@
           if (el) el.innerText = totals[cat].toLocaleString() + "円";
         });
 
+        // 今日（本日）の日付文字列（例: "09/06"）を作成
+        const todayObj = new Date();
+        const todayM = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const todayD = String(todayObj.getDate()).padStart(2, '0');
+        const todayStr = `${todayM}/${todayD}`;
+
+        // 今日の支出額を取得（記録がなければ 0円）
+        const todaySpent = dailyExpenses[todayStr] || 0;
+
+        // 画面に反映
+        const todayEl = document.getElementById("todaySpentText");
+        if (todayEl) {
+          todayEl.innerText = todaySpent.toLocaleString() + "円";
+        }
+        
         updatePaceUI(grandBudget, grandSpent);
         renderDailyChart(dailyExpenses);
         renderHistoryTable(cachedDocs);
