@@ -278,9 +278,16 @@
     </div>
   </div>
 
-  <!-- 日別出費グラフカード -->
+<!-- 日別出費グラフカード -->
   <div class="card">
     <h3>📊 日別の出費グラフ（直近）</h3>
+
+    <!-- ★ここに今日の支出合計バッジを追加！★ -->
+    <div style="background: rgba(244, 63, 94, 0.15); border: 1px solid #f43f5e; border-radius: 10px; padding: 10px; margin-bottom: 12px;">
+      <span style="font-size: 12px; color: #fda4af;">今日（本日）の支出合計</span>
+      <div style="font-size: 22px; font-weight: bold; color: #f43f5e; text-shadow: 0 0 8px rgba(244, 63, 94, 0.5);" id="todaySpentText">0円</div>
+    </div>
+
     <div class="chart-container">
       <canvas id="dailyExpenseChart"></canvas>
     </div>
